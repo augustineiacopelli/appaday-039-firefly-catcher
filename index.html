@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>039 · Firefly Catcher</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --sky:    #0a0e1a;
+    --deep:   #060810;
+    --grass:  #0d1f0a;
+    --glow:   #e8ff70;
+    --glow2:  #aaff44;
+    --jar:    rgba(160,220,255,0.18);
+    --jar-rim:#a0dcff;
+    --gold:   #ffd84d;
+    --txt:    #dff0c0;
+    --ui-bg:  rgba(8,14,30,0.82);
+  }
+
+  html, body {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    background: var(--sky);
+    font-family: 'Nunito', sans-serif;
+    color: var(--txt);
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  /* ── CANVAS ── */
+  #canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    cursor: crosshair;
+  }
+
+  /* ── OVERLAY SCREENS ── */
+  .screen {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    background: rgba(6,8,16,0.88);
+    backdrop-filter: blur(6px);
+    z-index: 20;
+    padding: 24px;
+    text-align: center;
+  }
+  .screen.hidden { display: none; }
+
+  .jar-icon {
+    font-size: clamp(64px, 18vw, 100px);
+    line-height: 1;
+    filter: drop-shadow(0 0 24px var(--glow));
+    margin-bottom: 12px;
+  }
+
+  h1 {
+    font-family: 'Fredoka One', cursive;
+    font-size: clamp(2.4rem, 9vw, 4rem);
+    color: var(--glow);
+    text-shadow: 0 0 30px var(--glow2), 0 0 60px rgba(168,255,68,0.3);
+    letter-spacing: 0.02em;
+    margin-bottom: 6px;
+  }
+
+  .tagline {
+    font-size: clamp(0.95rem, 3.5vw, 1.2rem);
+    color: rgba(223,240,192,0.7);
+    margin-bottom: 32px;
+    font-weight: 600;
+  }
+
+  .btn {
+    background: var(--glow);
+    color: #0a1200;
+    font-family: 'Fredoka One', cursive;
+    font-size: clamp(1.2rem, 5vw, 1.6rem);
+    padding: 14px 48px;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    box-shadow: 0 0 24px var(--glow2), 0 4px 16px rgba(0,0,0,0.4);
+    transition: transform 0.12s, box-shadow 0.12s;
+    margin-bottom: 16px;
+  }
+  .btn:active { transform: scale(0.95); }
+
+  .btn-secondary {
+    background: transparent;
+    color: var(--txt);
+    border: 2px solid rgba(223,240,192,0.3);
+    font-size: clamp(0.9rem, 3vw, 1.1rem);
+    padding: 10px 32px;
+  }
+
+  /* difficulty row */
+  .diff-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .diff-btn {
+    background: rgba(255,255,255,0.06);
+    border: 2px solid rgba(232,255,112,0.25);
+    color: var(--txt);
+    font-family: 'Nunito', sans-serif;
+    font-weight: 700;
+    font-size: 0.95rem;
+    padding: 8px 20px;
+    border-radius: 24px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .diff-btn.active, .diff-btn:hover {
+    background: rgba(232,255,112,0.14);
+    border-color: var(--glow);
+    color: var(--glow);
+  }
+
+  /* ── HUD ── */
+  #hud {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 18px;
+    background: var(--ui-bg);
+    z-index: 10;
+    gap: 8px;
+    backdrop-filter: blur(4px);
+  }
+  #hud.hidden { display: none; }
+
+  .hud-jar {
+    font-size: 1.4rem;
+    line-height: 1;
+  }
+  #score-display {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.5rem;
+    color: var(--glow);
+    text-shadow: 0 0 12px var(--glow2);
+    min-width: 60px;
+  }
+  #timer-display {
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.5rem;
+    color: var(--gold);
+    min-width: 44px;
+    text-align: right;
+  }
+  #timer-display.urgent { color: #ff6b6b; animation: pulse 0.5s infinite alternate; }
+  @keyframes pulse { from { opacity: 1; } to { opacity: 0.5; } }
+
+  .hud-sep { color: rgba(255,255,255,0.15); font-size: 1.2rem; }
+
+  /* ── END SCREEN extras ── */
+  .score-big {
+    font-family: 'Fredoka One', cursive;
+    font-size: clamp(3rem, 14vw, 6rem);
+    color: var(--glow);
+    text-shadow: 0 0 40px var(--glow2);
+    line-height: 1;
+    margin: 8px 0 4px;
+  }
+  .score-label {
+    font-size: clamp(0.85rem, 3vw, 1rem);
+    color: rgba(223,240,192,0.55);
+    margin-bottom: 24px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .grade-msg {
+    font-size: clamp(1rem, 4vw, 1.3rem);
+    color: var(--gold);
+    font-weight: 700;
+    margin-bottom: 28px;
+  }
+
+  /* ── NAV BAR ── */
+  #nav {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: rgba(6,8,16,0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 0 max(8px, env(safe-area-inset-bottom));
+    z-index: 10;
+  }
+  #nav a {
+    color: rgba(223,240,192,0.45);
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-decoration: none;
+    letter-spacing: 0.05em;
+  }
+  #nav a:hover { color: var(--glow); }
+  #nav .sep { margin: 0 10px; color: rgba(255,255,255,0.15); }
+
+  /* ── CATCH POP ── */
+  .pop {
+    position: fixed;
+    pointer-events: none;
+    font-family: 'Fredoka One', cursive;
+    font-size: 1.4rem;
+    color: var(--glow);
+    text-shadow: 0 0 12px var(--glow2);
+    animation: floatup 0.7s ease-out forwards;
+    z-index: 15;
+  }
+  @keyframes floatup {
+    0%   { opacity: 1; transform: translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateY(-50px) scale(1.3); }
+  }
+
+  /* ── MISS RIPPLE ── */
+  .ripple {
+    position: fixed;
+    border-radius: 50%;
+    border: 2px solid rgba(255,100,100,0.6);
+    pointer-events: none;
+    animation: ripple 0.4s ease-out forwards;
+    z-index: 14;
+  }
+  @keyframes ripple {
+    0%   { width: 10px; height: 10px; opacity: 0.8; transform: translate(-50%,-50%) scale(1); }
+    100% { width: 80px; height: 80px; opacity: 0; transform: translate(-50%,-50%) scale(1); }
+  }
+</style>
+</head>
+<body>
+
+<!-- CANVAS -->
+<canvas id="canvas"></canvas>
+
+<!-- HUD -->
+<div id="hud" class="hidden">
+  <span class="hud-jar">🫙</span>
+  <span id="score-display">0</span>
+  <span class="hud-sep">·</span>
+  <span id="timer-display">30</span>
+</div>
+
+<!-- START SCREEN -->
+<div id="start-screen" class="screen">
+  <div class="jar-icon">🫙</div>
+  <h1>Firefly Catcher</h1>
+  <p class="tagline">Tap the glowing fireflies before they drift away!</p>
+
+  <div class="diff-row">
+    <button class="diff-btn active" data-diff="easy">Easy</button>
+    <button class="diff-btn" data-diff="normal">Normal</button>
+    <button class="diff-btn" data-diff="hard">Hard</button>
+  </div>
+
+  <button class="btn" id="start-btn">Catch Fireflies!</button>
+  <a href="https://augustineiacopelli.github.io/appaday/" style="color:rgba(223,240,192,0.35);font-size:0.8rem;font-weight:600;text-decoration:none;margin-top:12px;">← AppADay Portfolio</a>
+</div>
+
+<!-- END SCREEN -->
+<div id="end-screen" class="screen hidden">
+  <div class="jar-icon">🫙</div>
+  <h1>Time's Up!</h1>
+  <div class="score-big" id="final-score">0</div>
+  <div class="score-label">fireflies caught</div>
+  <div class="grade-msg" id="grade-msg"></div>
+  <button class="btn" id="play-again-btn">Play Again</button>
+  <button class="btn btn-secondary" id="change-diff-btn">Change Difficulty</button>
+</div>
+
+<!-- NAV -->
+<div id="nav">
+  <a href="https://augustineiacopelli.github.io/appaday/">← AppADay Portfolio</a>
+  <span class="sep">·</span>
+  <span style="color:rgba(223,240,192,0.35);font-size:0.78rem;font-weight:600;">039 · Firefly Catcher</span>
+</div>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────────────────────────
+var DIFF = {
+  easy:   { count: 7,  speed: 0.5, size: 28, time: 40 },
+  normal: { count: 10, speed: 0.8, size: 22, time: 30 },
+  hard:   { count: 14, speed: 1.3, size: 16, time: 25 }
+};
+
+var canvas = document.getElementById('canvas');
+var ctx = canvas.getContext('2d');
+var hudEl = document.getElementById('hud');
+var startScreen = document.getElementById('start-screen');
+var endScreen = document.getElementById('end-screen');
+var scoreDisplay = document.getElementById('score-display');
+var timerDisplay = document.getElementById('timer-display');
+var finalScore = document.getElementById('final-score');
+var gradeMsg = document.getElementById('grade-msg');
+var navEl = document.getElementById('nav');
+
+var flies = [];
+var stars = [];
+var jarDots = [];   // fireflies inside the jar
+var catchArcs = []; // in-flight arcs from tap point to jar
+var score = 0;
+var timeLeft = 30;
+var timerInterval = null;
+var animFrame = null;
+var running = false;
+var currentDiff = 'easy';
+var HUD_H = 48;
+var NAV_H = 40;
+
+// Jar geometry — computed in resize()
+var JAR = { x: 0, y: 0, w: 54, h: 70, rx: 27 };
+
+// ── RESIZE ─────────────────────────────────────────────────────────────────
+function resize() {
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+  HUD_H = hudEl.offsetHeight || 52;
+  NAV_H = navEl.offsetHeight || 44;
+  // Jar sits centered, just above the nav bar, nestled in the grass
+  JAR.w  = Math.min(70, canvas.width * 0.14);
+  JAR.h  = JAR.w * 1.3;
+  JAR.rx = JAR.w * 0.5;
+  JAR.x  = canvas.width * 0.5;
+  JAR.y  = canvas.height - NAV_H - JAR.h * 0.3; // bottom of jar at grass level
+}
+window.addEventListener('resize', function() { resize(); if (!running) drawIdle(); });
+resize();
+
+// ── STARS ──────────────────────────────────────────────────────────────────
+function makeStars() {
+  stars = [];
+  for (var i = 0; i < 120; i++) {
+    stars.push({
+      x: Math.random() * canvas.width,
+      y: HUD_H + Math.random() * (canvas.height - HUD_H - NAV_H - 60),
+      r: Math.random() * 1.2 + 0.3,
+      a: Math.random(),
+      twinkleSpeed: 0.005 + Math.random() * 0.01
+    });
+  }
+}
+
+// ── SKY ────────────────────────────────────────────────────────────────────
+function drawSky() {
+  var grd = ctx.createLinearGradient(0, HUD_H, 0, canvas.height - NAV_H - 50);
+  grd.addColorStop(0, '#060810');
+  grd.addColorStop(0.5, '#0a0e1a');
+  grd.addColorStop(1, '#101a08');
+  ctx.fillStyle = grd;
+  ctx.fillRect(0, HUD_H, canvas.width, canvas.height - HUD_H - NAV_H);
+}
+
+// ── STARS ──────────────────────────────────────────────────────────────────
+function drawStars() {
+  for (var i = 0; i < stars.length; i++) {
+    var s = stars[i];
+    s.a += s.twinkleSpeed;
+    var alpha = 0.3 + 0.5 * Math.abs(Math.sin(s.a));
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,240,' + alpha + ')';
+    ctx.fill();
+  }
+}
+
+// ── GRASS ──────────────────────────────────────────────────────────────────
+function drawGrass() {
+  var y0 = canvas.height - NAV_H - 50;
+  var grd = ctx.createLinearGradient(0, y0, 0, canvas.height - NAV_H);
+  grd.addColorStop(0, '#0d2b08');
+  grd.addColorStop(1, '#060e04');
+  ctx.fillStyle = grd;
+  ctx.fillRect(0, y0, canvas.width, canvas.height - NAV_H - y0);
+  ctx.fillStyle = '#0d2b08';
+  for (var i = 0; i < canvas.width; i += 6) {
+    var h = 14 + Math.sin(i * 0.15) * 8 + Math.random() * 4;
+    ctx.fillRect(i, y0 - h, 3, h);
+  }
+}
+
+// ── JAR ────────────────────────────────────────────────────────────────────
+// Drawn as a rounded rectangle with glass sheen. Firefly dots live inside.
+function drawJar() {
+  var jx = JAR.x, jy = JAR.y;
+  var jw = JAR.w, jh = JAR.h;
+  var jr = JAR.rx; // half-width = perfect semicircle top/bottom
+
+  // Body — clip region for dots
+  ctx.save();
+  // jar body path (rounded rect, more round at bottom)
+  var left = jx - jw / 2, top = jy - jh, right = jx + jw / 2, bottom = jy;
+  var br = jw * 0.38; // corner radius
+  ctx.beginPath();
+  ctx.moveTo(left + br, top);
+  ctx.lineTo(right - br, top);
+  ctx.quadraticCurveTo(right, top, right, top + br);
+  ctx.lineTo(right, bottom - br);
+  ctx.quadraticCurveTo(right, bottom, right - br, bottom);
+  ctx.lineTo(left + br, bottom);
+  ctx.quadraticCurveTo(left, bottom, left, bottom - br);
+  ctx.lineTo(left, top + br);
+  ctx.quadraticCurveTo(left, top, left + br, top);
+  ctx.closePath();
+
+  // glass fill
+  ctx.fillStyle = 'rgba(140,210,255,0.08)';
+  ctx.fill();
+
+  // draw jar dots inside clipped region
+  ctx.clip();
+  for (var i = 0; i < jarDots.length; i++) {
+    jarDots[i].draw();
+  }
+  ctx.restore();
+
+  // Jar outline on top of dots
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(left + br, top);
+  ctx.lineTo(right - br, top);
+  ctx.quadraticCurveTo(right, top, right, top + br);
+  ctx.lineTo(right, bottom - br);
+  ctx.quadraticCurveTo(right, bottom, right - br, bottom);
+  ctx.lineTo(left + br, bottom);
+  ctx.quadraticCurveTo(left, bottom, left, bottom - br);
+  ctx.lineTo(left, top + br);
+  ctx.quadraticCurveTo(left, top, left + br, top);
+  ctx.closePath();
+  ctx.strokeStyle = 'rgba(160,220,255,0.55)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // glass sheen — left highlight stripe
+  ctx.beginPath();
+  ctx.moveTo(left + jw * 0.18, top + jh * 0.08);
+  ctx.lineTo(left + jw * 0.28, top + jh * 0.08);
+  ctx.lineTo(left + jw * 0.22, top + jh * 0.55);
+  ctx.lineTo(left + jw * 0.12, top + jh * 0.55);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(200,240,255,0.12)';
+  ctx.fill();
+
+  // lid / rim
+  var rimH = jh * 0.1;
+  var rimW = jw * 0.85;
+  ctx.beginPath();
+  ctx.rect(jx - rimW / 2, top - rimH, rimW, rimH);
+  ctx.fillStyle = 'rgba(120,190,230,0.22)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(160,220,255,0.6)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // lid knob
+  ctx.beginPath();
+  ctx.rect(jx - rimW * 0.18, top - rimH * 2.1, rimW * 0.36, rimH * 1.2);
+  ctx.fillStyle = 'rgba(120,190,230,0.22)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(160,220,255,0.5)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+// ── JAR DOT (caught firefly inside jar) ────────────────────────────────────
+function JarDot() {
+  // Start near jar center, drift randomly
+  var jw = JAR.w, jh = JAR.h;
+  var pad = 6;
+  this.x = JAR.x + (Math.random() - 0.5) * (jw - pad * 2) * 0.7;
+  this.y = JAR.y - pad - Math.random() * (jh - pad * 2 - 12);
+  this.vx = (Math.random() - 0.5) * 0.5;
+  this.vy = (Math.random() - 0.5) * 0.5;
+  this.phase = Math.random() * Math.PI * 2;
+  this.phaseSpeed = 0.05 + Math.random() * 0.04;
+  this.r = 2.8 + Math.random() * 1.4;
+}
+
+JarDot.prototype.update = function() {
+  this.phase += this.phaseSpeed;
+  this.x += this.vx;
+  this.y += this.vy;
+  this.vx += (Math.random() - 0.5) * 0.08;
+  this.vy += (Math.random() - 0.5) * 0.08;
+  // dampen
+  this.vx *= 0.97;
+  this.vy *= 0.97;
+  // keep inside jar bounds (approximate)
+  var jw = JAR.w, jh = JAR.h, pad = 5;
+  var left = JAR.x - jw / 2 + pad, right = JAR.x + jw / 2 - pad;
+  var top  = JAR.y - jh + pad + 10, bottom = JAR.y - pad - 4;
+  if (this.x < left)   { this.x = left;   this.vx =  Math.abs(this.vx); }
+  if (this.x > right)  { this.x = right;  this.vx = -Math.abs(this.vx); }
+  if (this.y < top)    { this.y = top;    this.vy =  Math.abs(this.vy); }
+  if (this.y > bottom) { this.y = bottom; this.vy = -Math.abs(this.vy); }
+};
+
+JarDot.prototype.draw = function() {
+  var glow = 0.5 + 0.5 * Math.sin(this.phase);
+  var glowR = this.r * (2.5 + glow * 1.5);
+  var grd = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, glowR);
+  grd.addColorStop(0, 'rgba(232,255,112,0.95)');
+  grd.addColorStop(0.4, 'rgba(168,255,68,' + (0.6 + glow * 0.3) + ')');
+  grd.addColorStop(1, 'rgba(100,200,20,0)');
+  ctx.beginPath();
+  ctx.arc(this.x, this.y, glowR, 0, Math.PI * 2);
+  ctx.fillStyle = grd;
+  ctx.fill();
+  // bright core
+  ctx.beginPath();
+  ctx.arc(this.x, this.y, this.r * 0.6, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,200,1)';
+  ctx.fill();
+};
+
+// ── CATCH ARC (dot flying from tap to jar) ─────────────────────────────────
+function CatchArc(fromX, fromY) {
+  this.sx = fromX;
+  this.sy = fromY;
+  this.tx = JAR.x;
+  this.ty = JAR.y - JAR.h * 0.5; // aim at jar center
+  this.t  = 0; // 0→1 progress
+  this.speed = 0.045;
+  // control point for arc (curve up slightly then down)
+  this.cx = (this.sx + this.tx) / 2;
+  this.cy = Math.min(this.sy, this.ty) - 60;
+  this.done = false;
+}
+
+CatchArc.prototype.update = function() {
+  this.t += this.speed;
+  if (this.t >= 1) {
+    this.t = 1;
+    this.done = true;
+  }
+};
+
+CatchArc.prototype.pos = function() {
+  var t = this.t;
+  var mt = 1 - t;
+  return {
+    x: mt * mt * this.sx + 2 * mt * t * this.cx + t * t * this.tx,
+    y: mt * mt * this.sy + 2 * mt * t * this.cy + t * t * this.ty
+  };
+};
+
+CatchArc.prototype.draw = function() {
+  var p = this.pos();
+  var alpha = this.t < 0.8 ? 1 : (1 - this.t) / 0.2;
+  var grd = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 8);
+  grd.addColorStop(0, 'rgba(232,255,112,' + alpha + ')');
+  grd.addColorStop(0.5, 'rgba(168,255,68,' + (alpha * 0.7) + ')');
+  grd.addColorStop(1, 'rgba(100,200,20,0)');
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+  ctx.fillStyle = grd;
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,200,' + alpha + ')';
+  ctx.fill();
+};
+
+// ── FIREFLY ────────────────────────────────────────────────────────────────
+function Firefly(cfg) {
+  var margin = 40;
+  var topBound = HUD_H + margin;
+  // Keep flies in upper 75% of play area, well above jar
+  var botBound = canvas.height - NAV_H - JAR.h - 90;
+  if (botBound < topBound + 60) botBound = topBound + 60;
+  this.x = margin + Math.random() * (canvas.width - margin * 2);
+  this.y = topBound + Math.random() * (botBound - topBound);
+  this.r = cfg.size || 22;
+  this.speed = (cfg.speed || 0.8) * (0.7 + Math.random() * 0.6);
+  this.angle = Math.random() * Math.PI * 2;
+  this.turnRate = (Math.random() - 0.5) * 0.04;
+  this.phase = Math.random() * Math.PI * 2;
+  this.phaseSpeed = 0.04 + Math.random() * 0.04;
+  this.glowRadius = this.r * 3.5;
+  this.caught = false;
+  this.fadeOut = 1;
+}
+
+Firefly.prototype.update = function() {
+  if (this.caught) {
+    this.fadeOut -= 0.1;
+    return;
+  }
+  this.angle += this.turnRate + (Math.random() - 0.5) * 0.03;
+  this.x += Math.cos(this.angle) * this.speed;
+  this.y += Math.sin(this.angle) * this.speed;
+  this.phase += this.phaseSpeed;
+  var topBound = HUD_H + 20;
+  var botBound = canvas.height - NAV_H - JAR.h - 85;
+  if (botBound < topBound + 40) botBound = topBound + 40;
+  if (this.x < 20) { this.angle = Math.PI - this.angle; this.x = 20; }
+  if (this.x > canvas.width - 20) { this.angle = Math.PI - this.angle; this.x = canvas.width - 20; }
+  if (this.y < topBound) { this.angle = -this.angle; this.y = topBound; }
+  if (this.y > botBound) { this.angle = -this.angle; this.y = botBound; }
+};
+
+Firefly.prototype.draw = function() {
+  var glow = 0.5 + 0.5 * Math.sin(this.phase);
+  var alpha = this.caught ? this.fadeOut : 1;
+  if (alpha <= 0) return;
+  var outerGrd = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.glowRadius * (1 + glow * 0.4));
+  outerGrd.addColorStop(0, 'rgba(168,255,68,' + (0.12 * alpha) + ')');
+  outerGrd.addColorStop(1, 'rgba(168,255,68,0)');
+  ctx.beginPath();
+  ctx.arc(this.x, this.y, this.glowRadius * (1 + glow * 0.4), 0, Math.PI * 2);
+  ctx.fillStyle = outerGrd;
+  ctx.fill();
+  var innerGrd = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.r * 2.2);
+  innerGrd.addColorStop(0, 'rgba(232,255,112,' + alpha + ')');
+  innerGrd.addColorStop(0.4, 'rgba(168,255,68,' + (0.85 * alpha) + ')');
+  innerGrd.addColorStop(1, 'rgba(100,200,20,0)');
+  ctx.beginPath();
+  ctx.arc(this.x, this.y, this.r * 2.2, 0, Math.PI * 2);
+  ctx.fillStyle = innerGrd;
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(this.x, this.y, this.r * 0.55 * (0.8 + glow * 0.4), 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,200,' + alpha + ')';
+  ctx.fill();
+};
+
+// ── SPAWN / RESPAWN ─────────────────────────────────────────────────────────
+function spawnFlies() {
+  var cfg = DIFF[currentDiff];
+  flies = [];
+  for (var i = 0; i < cfg.count; i++) flies.push(new Firefly(cfg));
+}
+
+function maybeRespawn() {
+  if (!running) return;
+  var cfg = DIFF[currentDiff];
+  flies = flies.filter(function(f) { return !f.caught || f.fadeOut > 0; });
+  var alive = flies.filter(function(f) { return !f.caught; }).length;
+  if (alive < Math.floor(cfg.count * 0.6)) {
+    flies.push(new Firefly(cfg));
+    flies.push(new Firefly(cfg));
+  }
+}
+
+// ── MAIN LOOP ───────────────────────────────────────────────────────────────
+var lastRespawn = 0;
+function loop(ts) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawSky();
+  drawStars();
+  drawGrass();
+
+  // Update and draw arcs
+  for (var a = catchArcs.length - 1; a >= 0; a--) {
+    catchArcs[a].update();
+    catchArcs[a].draw();
+    if (catchArcs[a].done) catchArcs.splice(a, 1);
+  }
+
+  // Update jar dots
+  for (var d = 0; d < jarDots.length; d++) jarDots[d].update();
+
+  // Draw jar (clips dots inside)
+  drawJar();
+
+  // Flies on top
+  for (var i = 0; i < flies.length; i++) {
+    flies[i].update();
+    flies[i].draw();
+  }
+
+  if (ts - lastRespawn > 2000) {
+    maybeRespawn();
+    lastRespawn = ts;
+  }
+
+  if (running) animFrame = requestAnimationFrame(loop);
+}
+
+// ── IDLE LOOP ───────────────────────────────────────────────────────────────
+function drawIdle() {
+  if (running) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawSky();
+  if (stars.length === 0) makeStars();
+  drawStars();
+  drawGrass();
+  drawJar();
+  for (var i = 0; i < flies.length; i++) {
+    flies[i].update();
+    flies[i].draw();
+  }
+  animFrame = requestAnimationFrame(drawIdle);
+}
+
+// ── START GAME ──────────────────────────────────────────────────────────────
+function startGame() {
+  score = 0;
+  timeLeft = DIFF[currentDiff].time;
+  scoreDisplay.textContent = score;
+  timerDisplay.textContent = timeLeft;
+  timerDisplay.classList.remove('urgent');
+  startScreen.classList.add('hidden');
+  endScreen.classList.add('hidden');
+  hudEl.classList.remove('hidden');
+  makeStars();
+  spawnFlies();
+  jarDots = [];
+  catchArcs = [];
+  running = true;
+  cancelAnimationFrame(animFrame);
+  animFrame = requestAnimationFrame(loop);
+  timerInterval = setInterval(function() {
+    timeLeft--;
+    timerDisplay.textContent = timeLeft;
+    if (timeLeft <= 5) timerDisplay.classList.add('urgent');
+    if (timeLeft <= 0) endGame();
+  }, 1000);
+}
+
+// ── END GAME ────────────────────────────────────────────────────────────────
+function endGame() {
+  clearInterval(timerInterval);
+  running = false;
+  cancelAnimationFrame(animFrame);
+  hudEl.classList.add('hidden');
+  finalScore.textContent = score;
+  var maxPossible = DIFF[currentDiff].count + 10;
+  var pct = score / maxPossible;
+  var msgs = [
+    ['🌱 Keep trying!', pct < 0.2],
+    ['🌿 Good start!', pct < 0.4],
+    ['⭐ Nice catch!', pct < 0.6],
+    ['✨ Firefly whisperer!', pct < 0.8],
+    ['🌟 Amazing! Almost got them all!', true]
+  ];
+  for (var i = 0; i < msgs.length; i++) {
+    if (msgs[i][1]) { gradeMsg.textContent = msgs[i][0]; break; }
+  }
+  endScreen.classList.remove('hidden');
+  flies = [];
+  for (var j = 0; j < 5; j++) flies.push(new Firefly({ size: 20, speed: 0.4 }));
+  animFrame = requestAnimationFrame(drawIdle);
+}
+
+// ── TAP / CLICK ─────────────────────────────────────────────────────────────
+function handleTap(x, y) {
+  if (!running) return;
+  var hitR = DIFF[currentDiff].size * 2.8;
+  var hit = false;
+  for (var i = 0; i < flies.length; i++) {
+    var f = flies[i];
+    if (f.caught) continue;
+    var dx = f.x - x, dy = f.y - y;
+    if (dx * dx + dy * dy <= hitR * hitR) {
+      f.caught = true;
+      score++;
+      scoreDisplay.textContent = score;
+      // Launch arc from fly position to jar
+      catchArcs.push(new CatchArc(f.x, f.y));
+      // After arc lands, add dot to jar
+      (function() {
+        setTimeout(function() {
+          jarDots.push(new JarDot());
+        }, 600);
+      })();
+      showPop(x, y);
+      hit = true;
+      break;
+    }
+  }
+  if (!hit) showMiss(x, y);
+}
+
+function showPop(x, y) {
+  var el = document.createElement('div');
+  el.className = 'pop';
+  el.textContent = '+1 ✨';
+  el.style.left = (x - 20) + 'px';
+  el.style.top = (y - 30) + 'px';
+  document.body.appendChild(el);
+  setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 750);
+}
+
+function showMiss(x, y) {
+  var el = document.createElement('div');
+  el.className = 'ripple';
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
+  document.body.appendChild(el);
+  setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 450);
+}
+
+// Mouse
+canvas.addEventListener('click', function(e) { handleTap(e.clientX, e.clientY); });
+
+// Touch
+canvas.addEventListener('touchstart', function(e) {
+  e.preventDefault();
+  var t = e.changedTouches[0];
+  handleTap(t.clientX, t.clientY);
+}, { passive: false });
+
+// ── DIFFICULTY ──────────────────────────────────────────────────────────────
+var diffBtns = document.querySelectorAll('.diff-btn');
+for (var i = 0; i < diffBtns.length; i++) {
+  diffBtns[i].addEventListener('click', function() {
+    currentDiff = this.getAttribute('data-diff');
+    for (var j = 0; j < diffBtns.length; j++) diffBtns[j].classList.remove('active');
+    this.classList.add('active');
+  });
+}
+
+// ── BUTTONS ─────────────────────────────────────────────────────────────────
+document.getElementById('start-btn').addEventListener('click', function() {
+  setTimeout(startGame, 350);
+});
+document.getElementById('play-again-btn').addEventListener('click', function() {
+  setTimeout(startGame, 350);
+});
+document.getElementById('change-diff-btn').addEventListener('click', function() {
+  endScreen.classList.add('hidden');
+  startScreen.classList.remove('hidden');
+  cancelAnimationFrame(animFrame);
+  flies = [];
+  jarDots = [];
+  for (var i = 0; i < 8; i++) flies.push(new Firefly({ size: 20, speed: 0.4 }));
+  animFrame = requestAnimationFrame(drawIdle);
+});
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+makeStars();
+for (var i = 0; i < 8; i++) flies.push(new Firefly({ size: 22, speed: 0.45 }));
+jarDots = [];
+catchArcs = [];
+drawIdle();
+</script>
+</body>
+</html>
