@@ -1,6 +1,6 @@
 # 039 · Firefly Catcher
 
-**AppADay** — App 039 of 365  
+**AppADay** — App 039  
 **Category:** Games & Interactive  
 **Built:** June 15, 2026  
 **Live:** [augustineiacopelli.github.io/appaday-039-firefly-catcher](https://augustineiacopelli.github.io/appaday-039-firefly-catcher/)
