@@ -137,37 +137,41 @@
     top: 0; left: 0; right: 0;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
     padding: 10px 18px;
     background: var(--ui-bg);
     z-index: 10;
-    gap: 8px;
+    gap: 6px;
     backdrop-filter: blur(4px);
   }
   #hud.hidden { display: none; }
 
-  .hud-jar {
-    font-size: 1.4rem;
-    line-height: 1;
+  .hud-label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: rgba(223,240,192,0.55);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
   }
   #score-display {
     font-family: 'Fredoka One', cursive;
     font-size: 1.5rem;
     color: var(--glow);
     text-shadow: 0 0 12px var(--glow2);
-    min-width: 60px;
+    min-width: 36px;
+    text-align: left;
   }
   #timer-display {
     font-family: 'Fredoka One', cursive;
     font-size: 1.5rem;
     color: var(--gold);
-    min-width: 44px;
-    text-align: right;
+    min-width: 36px;
+    text-align: left;
   }
   #timer-display.urgent { color: #ff6b6b; animation: pulse 0.5s infinite alternate; }
   @keyframes pulse { from { opacity: 1; } to { opacity: 0.5; } }
 
-  .hud-sep { color: rgba(255,255,255,0.15); font-size: 1.2rem; }
+  .hud-sep { color: rgba(255,255,255,0.15); font-size: 1.2rem; margin: 0 4px; }
 
   /* ── END SCREEN extras ── */
   .score-big {
@@ -252,9 +256,10 @@
 
 <!-- HUD -->
 <div id="hud" class="hidden">
-  <span class="hud-jar">🫙</span>
+  <span class="hud-label">✨ Caught</span>
   <span id="score-display">0</span>
   <span class="hud-sep">·</span>
+  <span class="hud-label">⏱ Time</span>
   <span id="timer-display">30</span>
 </div>
 
